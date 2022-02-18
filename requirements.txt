@@ -4,5 +4,4 @@ scipy
 matplotlib
 seaborn
 ipywidgets
-functools
 statsmodels
