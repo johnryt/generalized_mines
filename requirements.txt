@@ -1,7 +1,6 @@
 numpy
 pandas
 scipy
-os
 matplotlib
 random
 seaborn
