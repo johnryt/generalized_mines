@@ -13,10 +13,10 @@ import functools
 
 from generalized_mines import *
 from other_functions import *
-m = GeneralizedOperatingMines(byproduct=True)
-m.run()
-
 init_plot2()
+m = GeneralizedOperatingMines(byproduct=True)
+m.op_initialize_prices()
+m.simulate_mine_life_one_year()
 
 def define_hyperparam_list():
     hyperparam_list = pd.DataFrame(np.nan,['byproduct'],['Value','Min','Max','Type','Name','Tab'])
@@ -40,6 +40,9 @@ def define_hyperparam_list():
         hyperparam_list.loc['primary_rr_default_mean'] = 13.996, 10, 20, 'FloatSlider', '100-Rec. rate mean:', 'Primary only'
         hyperparam_list.loc['primary_rr_default_var'] = 0.675, 0.1, 1, 'FloatSlider', 'Rec. rate var:', 'Primary only'
         hyperparam_list.loc['primary_rr_default_distribution'] = 'lognorm','','','Dropdown-dist','Rec. rate dist.:','Primary only'
+        hyperparam_list.loc['primary_ot_cumu_mean'] = 14.0018, 10, 20, 'FloatSlider', 'Cumu. ore treated ratio w/ ot mean:', 'Primary only'
+        hyperparam_list.loc['primary_ot_cumu_var'] = 0.661, 0.1, 1, 'FloatSlider', 'Cumu. ore treated ratio w/ ot var:', 'Primary only'
+        hyperparam_list.loc['primary_ot_cumu_distribution'] = 'lognorm','','','Dropdown-dist','Cumu. ore treated ratio w/ ot dist.:','Primary only'
         hyperparam_list.loc['primary_commodity_price'] = 6000, 1000, 20000, 'IntSlider','Commodity price (USD/t):','Primary only'
         hyperparam_list.loc['primary_minerisk_mean'] = 9.4, 4, 20, 'FloatSlider','Risk mean:','Primary only'
         hyperparam_list.loc['primary_minerisk_var'] = 1.35, 0.1, 10, 'FloatSlider','Risk var:','Primary only'
@@ -71,6 +74,11 @@ def define_hyperparam_list():
         hyperparam_list.loc['byproduct_host2_commodity_price'] = 3000, 500, 40000, 'IntSlider', 'Host 2 price (USD/t):', 'Byproduct main'
         hyperparam_list.loc['byproduct_host3_commodity_price'] = 1000, 500, 40000, 'IntSlider', 'Host 3 price (USD/t):', 'Byproduct main'
 
+        hyperparam_list.loc['primary_commodity_price_option'] = 'constant','','','Dropdown-price-opt','Primary price option:','Mine life sim.'
+        hyperparam_list.loc['byproduct_commodity_price_option'] = 'constant','','','Dropdown-price-opt','Byproduct price option:','Byproduct main'
+        hyperparam_list.loc['primary_commodity_price_change'] = 10,0,100,'IntSlider','Primary price % change:','Mine life sim.'
+        hyperparam_list.loc['byproduct_commodity_price_change'] = 10,0,100,'IntSlider','Primary price % change:','Byproduct main'
+        
         hyperparam_list.loc['byproduct_pri_production_fraction']   = 0.1, 0, 1, 'FloatSlider', 'Byproduct prod. pri. frac.:','Byproduct main'
         hyperparam_list.loc['byproduct_host1_production_fraction'] = 0.5, 0, 1, 'FloatSlider', 'Byproduct prod. host 1 frac.:','Byproduct main'
         hyperparam_list.loc['byproduct_host2_production_fraction'] = 0.4, 0, 1, 'FloatSlider', 'Byproduct prod. host 2 frac.:','Byproduct main'
@@ -132,7 +140,19 @@ def define_hyperparam_list():
         hyperparam_list.loc['byproduct_host1_rr_default_distribution'] = 'lognorm', '', '', 'Dropdown-dist', 'Host 1 rec. rate dist.:', 'Host 1'
         hyperparam_list.loc['byproduct_host2_rr_default_distribution'] = 'lognorm', '', '', 'Dropdown-dist', 'Host 2 rec. rate dist.:', 'Host 2'
         hyperparam_list.loc['byproduct_host3_rr_default_distribution'] = 'lognorm', '', '', 'Dropdown-dist', 'Host 3 rec. rate dist.:', 'Host 3'
-
+        
+        hyperparam_list.loc['byproduct0_rr0'] = 80,50,100, 'FloatSlider', 'Initial recovery rate (%):','Primary mines'
+        hyperparam_list.loc['byproduct1_rr0'] = 80,50,100, 'FloatSlider', 'Initial recovery rate (%):','Host 1'
+        hyperparam_list.loc['byproduct1_mine_rrmax'] = 90,50,100, 'FloatSlider', 'Maximum recovery rate (%):','Host 1'
+        hyperparam_list.loc['byproduct2_rr0'] = 85,50,100, 'FloatSlider', 'Initial recovery rate (%):','Host 2'
+        hyperparam_list.loc['byproduct2_mine_rrmax'] = 95,50,100, 'FloatSlider', 'Maximum recovery rate (%):','Host 2'
+        hyperparam_list.loc['byproduct3_rr0'] = 80,50,100, 'FloatSlider', 'Initial recovery rate (%):','Host 3'
+        hyperparam_list.loc['byproduct3_mine_rrmax'] = 95,50,100, 'FloatSlider', 'Maximum recovery rate (%):','Host 3'
+        hyperparam_list.loc['byproduct_rr_margin_elas'] = 0.01,0,0.1,'FloatSlider','Recovery rate elasticity to margin:','Byproduct main'
+        
+        
+        
+        
         hyperparam_list.loc['byproduct_pri_minerisk_mean']   = 9.4, 4, 20, 'FloatSlider', 'Pri risk mean:', 'Primary mines'
         hyperparam_list.loc['byproduct_host1_minerisk_mean'] = 9.4 , 4, 20, 'FloatSlider', 'Host 1 risk mean:', 'Host 1'
         hyperparam_list.loc['byproduct_host2_minerisk_mean'] = 9.4 , 4, 20, 'FloatSlider', 'Host 2 risk mean:', 'Host 2'
@@ -146,45 +166,45 @@ def define_hyperparam_list():
         hyperparam_list.loc['byproduct_host2_minerisk_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 2 risk dist.:', 'Host 2'
         hyperparam_list.loc['byproduct_host3_minerisk_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 3 risk dist.:', 'Host 3'
 
-        hyperparam_list.loc['byproduct_host1_minesite_cost_ratio_mean'] = 20, 1, 100, 'FloatSlider', 'Host 1 : byprod. cost mean:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_minesite_cost_ratio_mean'] = 2, 1, 100, 'FloatSlider', 'Host 2 : byprod. cost mean:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_minesite_cost_ratio_mean'] = 10, 1, 100, 'FloatSlider', 'Host 3 : byprod. cost mean:', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_minesite_cost_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 1 : byprod. cost var:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_minesite_cost_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 2 : byprod. cost var:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_minesite_cost_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 3 : byprod. cost var:', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_minesite_cost_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 1 : byprod. cost dist.:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_minesite_cost_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 2 : byprod. cost dist.:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_minesite_cost_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 3 : byprod. cost dist.:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_minesite_cost_ratio_mean'] = 20, 1, 100, 'FloatSlider', 'Host 1/byprod ratio cost mean:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_minesite_cost_ratio_mean'] = 2, 1, 100, 'FloatSlider', 'Host 2/byprod ratio cost mean:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_minesite_cost_ratio_mean'] = 10, 1, 100, 'FloatSlider', 'Host 3/byprod ratio cost mean:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_minesite_cost_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 1/byprod ratio cost var:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_minesite_cost_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 2/byprod ratio cost var:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_minesite_cost_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 3/byprod ratio cost var:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_minesite_cost_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 1/byprod ratio cost dist.:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_minesite_cost_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 2/byprod ratio cost dist.:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_minesite_cost_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 3/byprod ratio cost dist.:', 'Host 3'
 
-        hyperparam_list.loc['byproduct_host1_sus_capex_ratio_mean'] = 20, 1, 100, 'FloatSlider', 'Host 1 : byprod. sCAPEX mean:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_sus_capex_ratio_mean'] = 2, 1, 100, 'FloatSlider', 'Host 2 : byprod. sCAPEX mean:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_sus_capex_ratio_mean'] = 10, 1, 100, 'FloatSlider', 'Host 3 : byprod. sCAPEX mean:', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_sus_capex_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 1 : byprod. sCAPEX var:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_sus_capex_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 2 : byprod. sCAPEX var:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_sus_capex_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 3 : byprod. sCAPEX var:', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_sus_capex_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 1 : byprod. sCAPEX dist.:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_sus_capex_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 2 : byprod. sCAPEX dist.:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_sus_capex_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 3 : byprod. sCAPEX dist.:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_sus_capex_ratio_mean'] = 20, 1, 100, 'FloatSlider', 'Host 1/byprod ratio sCAPEX mean:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_sus_capex_ratio_mean'] = 2, 1, 100, 'FloatSlider', 'Host 2/byprod ratio sCAPEX mean:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_sus_capex_ratio_mean'] = 10, 1, 100, 'FloatSlider', 'Host 3/byprod ratio sCAPEX mean:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_sus_capex_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 1/byprod ratio sCAPEX var:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_sus_capex_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 2/byprod ratio sCAPEX var:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_sus_capex_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 3/byprod ratio sCAPEX var:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_sus_capex_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 1/byprod ratio sCAPEX dist.:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_sus_capex_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 2/byprod ratio sCAPEX dist.:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_sus_capex_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 3/byprod ratio sCAPEX dist.:', 'Host 3'
 
-        hyperparam_list.loc['byproduct_host1_tcrc_ratio_mean'] = 20, 1, 100, 'FloatSlider', 'Host 1 : byprod TCRC mean:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_tcrc_ratio_mean'] = 2, 1, 100, 'FloatSlider', 'Host 2 : byprod TCRC mean:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_tcrc_ratio_mean'] = 10, 1, 100, 'FloatSlider', 'Host 3 : byprod TCRC mean:', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_tcrc_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 1 : byprod TCRC var:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_tcrc_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 2 : byprod TCRC var:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_tcrc_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 3 : byprod TCRC var:', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_tcrc_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 1 : byprod TCRC dist.:', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_tcrc_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 2 : byprod TCRC dist.:', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_tcrc_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 3 : byprod TCRC dist.:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_tcrc_ratio_mean'] = 20, 1, 100, 'FloatSlider', 'Host 1/byprod ratio TCRC mean:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_tcrc_ratio_mean'] = 2, 1, 100, 'FloatSlider', 'Host 2/byprod ratio TCRC mean:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_tcrc_ratio_mean'] = 10, 1, 100, 'FloatSlider', 'Host 3/byprod ratio TCRC mean:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_tcrc_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 1/byprod ratio TCRC var:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_tcrc_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 2/byprod ratio TCRC var:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_tcrc_ratio_var'] = 1, 0.001, 4, 'FloatSlider', 'Host 3/byprod ratio TCRC var:', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_tcrc_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 1/byprod ratio TCRC dist.:', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_tcrc_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 2/byprod ratio TCRC dist.:', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_tcrc_ratio_distribution'] = 'norm', '', '', 'Dropdown-dist', 'Host 3/byprod ratio TCRC dist.:', 'Host 3'
 
-        hyperparam_list.loc['byproduct_host1_grade_ratio_mean'] = 20, 1,100,'FloatSlider','Host : byprod. grade (mean):', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_grade_ratio_mean'] = 2, 1,100,'FloatSlider','Host : byprod. grade (mean):', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_grade_ratio_mean'] = 10, 1,100,'FloatSlider','Host : byprod. grade (mean):', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_grade_ratio_var'] = 1, 1, 10,'FloatSlider','Host : byprod. grade (var):', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_grade_ratio_var'] = 1, 1, 10,'FloatSlider','Host : byprod. grade (var):', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_grade_ratio_var'] = 1, 1, 10,'FloatSlider','Host : byprod. grade (var):', 'Host 3'
-        hyperparam_list.loc['byproduct_host1_grade_ratio_distribution'] = 'norm','','','Dropdown-dist','Host : byprod. grade (dist.):', 'Host 1'
-        hyperparam_list.loc['byproduct_host2_grade_ratio_distribution'] = 'norm','','','Dropdown-dist','Host : byprod. grade (dist.):', 'Host 2'
-        hyperparam_list.loc['byproduct_host3_grade_ratio_distribution'] = 'norm','','','Dropdown-dist','Host : byprod. grade (dist.):', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_grade_ratio_mean'] = 20, 1,100,'FloatSlider','Host/byprod ratio grade (mean):', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_grade_ratio_mean'] = 2, 1,100,'FloatSlider','Host/byprod ratio grade (mean):', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_grade_ratio_mean'] = 10, 1,100,'FloatSlider','Host/byprod ratio grade (mean):', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_grade_ratio_var'] = 1, 1, 10,'FloatSlider','Host/byprod ratio grade (var):', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_grade_ratio_var'] = 1, 1, 10,'FloatSlider','Host/byprod ratio grade (var):', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_grade_ratio_var'] = 1, 1, 10,'FloatSlider','Host/byprod ratio grade (var):', 'Host 3'
+        hyperparam_list.loc['byproduct_host1_grade_ratio_distribution'] = 'norm','','','Dropdown-dist','Host/byprod ratio grade (dist.):', 'Host 1'
+        hyperparam_list.loc['byproduct_host2_grade_ratio_distribution'] = 'norm','','','Dropdown-dist','Host/byprod ratio grade (dist.):', 'Host 2'
+        hyperparam_list.loc['byproduct_host3_grade_ratio_distribution'] = 'norm','','','Dropdown-dist','Host/byprod ratio grade (dist.):', 'Host 3'
 
         hyperparam_list.loc['byproduct_pri_sxew_fraction']   = 0.5, 0, 1, 'FloatSlider', 'Pri SX-EW frac.:', 'Primary mines'
         hyperparam_list.loc['byproduct_host1_sxew_fraction'] = 0.2, 0, 1, 'FloatSlider', 'Host 1 SX-EW frac.:', 'Host 1'
@@ -198,15 +218,15 @@ def set_all(b,buttons,boo):
 
 def setup_toggles():
     toggles = list(np.sort([i for i in m.host1.mines.columns if m.host1.mines.dtypes[i] != str]))
-    toggles += ['Rec. rate - grade corr.','Cost supply curve','Margin supply curve','Log scale?','Select all','Clear selection']
+    toggles += ['Rec. rate - grade corr.','Cost supply curve','Margin supply curve','Log scale?','Sim. over time','Plot aggregated','Select all','Clear selection']
     buttons = []
     for toggle in toggles:
         if toggle in ['Select all','Clear selection']:
             button = wid.Button(description=toggle,layout=wid.Layout(width='auto', height='40px'))
             if toggle=='Select all':
-                button.on_click(functools.partial(set_all,buttons=buttons[:-1],boo=True))
+                button.on_click(functools.partial(set_all,buttons=buttons,boo=True))
             else:
-                button.on_click(functools.partial(set_all,buttons=buttons[:-2],boo=False))
+                button.on_click(functools.partial(set_all,buttons=buttons[:-1],boo=False))
         else:
             button = wid.ToggleButton(
                 value=False,
@@ -255,6 +275,12 @@ def setup_tabs(hyperparam_list):
                                 description=h.Name,
                                 disabled=False,style={'description_width': 'initial'},
                                 layout = wid.Layout(width=width,height='40px'))
+            elif h.Type == 'Dropdown-price-opt':
+                item = wid.Dropdown(options=['constant', 'yoy', 'step'],
+                                value=h.Value,
+                                description=h.Name,
+                                disabled=False,style={'description_width': 'initial'},
+                                layout = wid.Layout(width=width,height='40px'))
             elif h.Type == 'FloatSlider':
                 item = wid.FloatSlider(
                                 min=h.Min,max=h.Max,step=(h.Max-h.Min)/100,description=h.Name,value=h.Value,
@@ -299,6 +325,7 @@ def setup_tabs(hyperparam_list):
     for i,j in zip(range(len(tabs)),tabs):
         tab_tab.set_title(i, j)
     display(tab_tab)
+    return hyperparam_list
 
 def add_tab_reset_button(hyperparam_list, tab, tab_tab):
     button = wid.Button(description='Reset this tab to default values',
@@ -311,68 +338,97 @@ def add_tab_reset_button(hyperparam_list, tab, tab_tab):
     hyperparam_list.loc['button_'+tab,'Tab'] = tab
     return hyperparam_list
     
+def reset_btn_eventhandler(obj,hyperparam_list):
+    for i in hyperparam_list.dropna().index:
+        hyperparam_list.loc[i,'Result'].value = hyperparam_list.loc[i,'Value']
+            
 def add_overall_reset_button(hyperparam_list):
     button = wid.Button(description='Reset all values to default',
                        layout=wid.Layout(width='auto', height='40px'))
-    def btn_eventhandler(obj):
-        for i in hyperparam_list.dropna().index:
-            hyperparam_list.loc[i,'Result'].value = hyperparam_list.loc[i,'Value']
-#     display(button)
-    button.on_click(btn_eventhandler)
+    button.on_click(functools.partial(reset_btn_eventhandler,hyperparam_list=hyperparam_list))
     return button
 
-def make_plot_button(toggles, m, hyperparam_list, out):
-    button = wid.Button(description='Plot selected',
-                       layout=wid.Layout(width='auto', height='40px'))
-#     display(button)
-    display(out)
-    def btn_eventhandler(obj,m=m,toggles_=toggles):
-        with out:
-            toggles = toggles_.copy()
-            toggles_list = [i for i in toggles.index if 'value' in toggles.loc[i].Result.keys]
-            for i in toggles_list:
-                toggles.loc[i,'value'] = toggles.loc[i,'Result'].value
-            
-            toggles = toggles.dropna()
-            bools = ['Rec. rate - grade corr.','Cost supply curve','Margin supply curve','Log scale?']
-            plot_values = toggles.loc[(toggles.value),'value'].index
-            if len(plot_values)>0 or (len(plot_values)>1 and toggles.loc['Log scale?','value']):
-                m = GeneralizedOperatingMines(byproduct=True)
-                ind = np.intersect1d(m.hyperparam.index,hyperparam_list.dropna().index)
-                m.hyperparam.loc[ind,'Value'] = [i.value for i in hyperparam_list.loc[ind].Result]
-                m.run()
+def plot_btn_eventhandler(obj,m,toggles_,out,hyperparam_list):
+    with out:
+        toggles = toggles_.copy()
+        toggles_list = [i for i in toggles.index if 'value' in toggles.loc[i].Result.keys]
+        for i in toggles_list:
+            toggles.loc[i,'value'] = toggles.loc[i,'Result'].value
+
+        toggles = toggles.dropna()
+        bools = ['Rec. rate - grade corr.','Cost supply curve','Margin supply curve','Sim. over time','Plot aggregated','Log scale?']
+        plot_values = toggles.loc[(toggles.value),'value'].index
+        if len(plot_values)>0 or (len(plot_values)>1 and toggles.loc['Log scale?','value']):
+            m = GeneralizedOperatingMines(byproduct=True)
+            ind = np.intersect1d(m.hyperparam.index,hyperparam_list.dropna().index)
+            m.hyperparam.loc[ind,'Value'] = [i.value for i in hyperparam_list.loc[ind].Result]
+            if toggles.loc['Sim. over time','value']:
+                m.hyperparam.loc['minesite_cost_response_to_grade_price','Value']=True
+                m.simulation_time = np.arange(2019,2051)
+                m.op_initialize_prices()
+                for i in m.simulation_time:
+                    m.i = i
+                    m.simulate_mine_life_one_year()
+                    
+                plt_params=[i for i in plot_values if i not in bools]
+                fig, ax = easy_subplots(plt_params)
+                if toggles.loc['Plot aggregated','value']:
+                    for i,a in zip(plt_params,ax):
+                        use_mean = 'USD/t' in i or '%' in i or 'OGE' in i or '$M' in i or 'ratio' in i
+                        for j in m.ml['Byproduct ID'].unique():
+                            ind = m.ml['Byproduct ID'].groupby(level=1).mean()==j
+                            ind = ind[ind].index
+                            if use_mean:
+                                m.ml[i].unstack()[ind].mean(axis=1).plot(label=j,ax=a)
+                            else:    
+                                m.ml[i].unstack()[ind].sum(axis=1).plot(label=j,ax=a)
+                        a.legend()
+                        strlabel = 'mean' if use_mean else 'sum'
+                        a.set(title=i+' ('+strlabel+')')
+                else:
+                    for i,a in zip(plt_params,ax):
+                        m.ml[i].unstack().plot(legend=False,ax=a)
+                        a.set(title=i)
+                fig.tight_layout()
+                plt.close(fig)
+            else:
+                m.initialize_mines()
                 fig = m.plot_relevant_params(
                     include=[i for i in plot_values if i not in bools],
                     plot_recovery_grade_correlation = toggles.loc['Rec. rate - grade corr.','value'],
                     plot_minesite_supply_curve = toggles.loc['Cost supply curve','value'],
                     plot_margin_supply_curve = toggles.loc['Margin supply curve','value'],
                     log_scale = toggles.loc['Log scale?','value'],dontplot=True,byproduct=True)
-                out.clear_output()
-                display(fig)
-            elif toggles.loc['Log scale?','value']:
-                out.clear_output()
-                print('Must select more than just \'Log scale\'')
-            else:
-                out.clear_output()
-                print('Must select at least one parameter')
-    button.on_click(functools.partial(btn_eventhandler,m=m,toggles_=toggles))
+            out.clear_output()
+            display(fig)
+        elif toggles.loc['Log scale?','value']:
+            out.clear_output()
+            print('Must select more than just \'Log scale\'')
+        else:
+            out.clear_output()
+            print('Must select at least one parameter')
+                
+def make_plot_button(toggles, m, hyperparam_list, out):
+    button = wid.Button(description='Plot selected',
+                       layout=wid.Layout(width='auto', height='40px'))
+    display(out)
+    button.on_click(functools.partial(plot_btn_eventhandler,m=m,toggles_=toggles,out=out,hyperparam_list=hyperparam_list))
     return button
 
+def run_btn_eventhandler(obj,hyperparam_list):
+    with out:
+#             out.clear_output()
+        print('Mines now exist')
+    newmod = GeneralizedOperatingMines(byproduct=True)
+    ind = np.intersect1d(newmod.hyperparam.index,hyperparam_list.dropna().index)
+    newmod.hyperparam.loc[ind,'Value'] = [i.value for i in hyperparam_list.loc[ind].Result]
+    newmod.simulate_mine_life_one_year()
+    return newmod
+    
 def make_run_button(hyperparam_list, out):
     button = wid.Button(description='Run model setup',
                        layout=wid.Layout(width='auto', height='40px'))
-#     display(button)
-#     display(out)
-    def btn_eventhandler(obj):
-        with out:
-#             out.clear_output()
-            print('Mines now exist')
-        newmod = GeneralizedOperatingMines(byproduct=True)
-        ind = np.intersect1d(newmod.hyperparam.index,hyperparam_list.dropna().index)
-        newmod.hyperparam.loc[ind,'Value'] = [i.value for i in hyperparam_list.loc[ind].Result]
-        newmod.run()
-        return newmod
-    newmod = button.on_click(btn_eventhandler)
+    newmod = button.on_click(functools.partial(run_btn_eventhandler,hyperparam_list=hyperparam_list))
     return button, newmod
 
 def display_multiple_buttons(buttons):
@@ -381,7 +437,7 @@ def display_multiple_buttons(buttons):
 def generate_widgets():
     hyperparam_list = define_hyperparam_list()
     toggles = setup_toggles()
-    setup_tabs(hyperparam_list)
+    hyperparam_list = setup_tabs(hyperparam_list)
     out = wid.Output()
     reset_button = add_overall_reset_button(hyperparam_list)
     run_button, m = make_run_button(hyperparam_list,out)
@@ -390,3 +446,5 @@ def generate_widgets():
         reset_button,
         run_button,
         plot_button])
+    return hyperparam_list
+
