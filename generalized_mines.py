@@ -1705,9 +1705,9 @@ class GeneralizedOperatingMines():
             grade_expect.loc[ml_yr['Byproduct ID'][ml_yr['Byproduct ID']!=0].index] = pri_grade_expect/ml_yr['Byproduct grade ratio']
             
         if self.hyperparam['Value']['minesite_cost_response_to_grade_price']:
-            minesite_cost_expect = self.calculate_minesite_cost(ml_yr['Minesite cost (USD/t)'], grade_expect, self.ml_last['Head grade (%)'], price_expect, initial_price) * (1-h['Value']['mine_cost_tech_improvements']/100)**(i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
+            minesite_cost_expect = self.calculate_minesite_cost(ml_yr['Minesite cost (USD/t)'], grade_expect, self.ml_last['Head grade (%)'], price_expect, initial_price) * (1-h['Value']['mine_cost_tech_improvements']/100)**(self.i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
         else:
-            minesite_cost_expect = ml_yr['Minesite cost (USD/t)'] * (1-h['Value']['mine_cost_tech_improvements']/100)**(i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
+            minesite_cost_expect = ml_yr['Minesite cost (USD/t)'] * (1-h['Value']['mine_cost_tech_improvements']/100)**(self.i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
         paid_metal_expect = ot_expect * grade_expect * ml_yr['Recovery rate (%)'] * ml_yr['Payable percent (%)'] * 1e-6
         tcm_expect = price_expect - minesite_cost_expect - ml_yr['TCRC (USD/t)']   
         cash_flow_expect = 1e-3*paid_metal_expect*tcm_expect - overhead - sustaining_capex - development_capex
@@ -1718,9 +1718,9 @@ class GeneralizedOperatingMines():
 
             pri_paid_metal_expect = ot_expect * pri_grade_expect * ml_yr['Primary Recovery rate (%)'] * ml_yr['Primary Payable percent (%)'] /1e6
             if self.hyperparam['Value']['minesite_cost_response_to_grade_price']:
-                pri_minesite_cost_expect = self.calculate_minesite_cost(ml_yr['Primary Minesite cost (USD/t)'], pri_grade_expect, self.ml_last['Primary Head grade (%)'], pri_price_expect, pri_initial_price) * (1+h['Value']['mine_cost_tech_improvements']/100)**(i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
+                pri_minesite_cost_expect = self.calculate_minesite_cost(ml_yr['Primary Minesite cost (USD/t)'], pri_grade_expect, self.ml_last['Primary Head grade (%)'], pri_price_expect, pri_initial_price) * (1+h['Value']['mine_cost_tech_improvements']/100)**(self.i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
             else: 
-                pri_minesite_cost_expect = ml_yr['Primary Minesite cost (USD/t)'] * (1+h['Value']['mine_cost_tech_improvements']/100)**(i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
+                pri_minesite_cost_expect = ml_yr['Primary Minesite cost (USD/t)'] * (1+h['Value']['mine_cost_tech_improvements']/100)**(self.i-self.simulation_time[0]) * (ml_yr['Ore treated (kt)']/ml_yr['Simulation start ore treated (kt)'])
             pri_tcm_expect = pri_price_expect - pri_minesite_cost_expect - ml_yr['Primary TCRC (USD/t)']
             by_tcm_expect = tcm_expect.copy()
             tcm_expect = (by_tcm_expect*paid_metal_expect + pri_tcm_expect*pri_paid_metal_expect)/pri_paid_metal_expect
